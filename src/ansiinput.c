@@ -341,8 +341,8 @@ static void parseInput(char* buf, size_t len) {
                     .shift = type & AI_MOUSE_SHIFT,
                     .alt = type & AI_MOUSE_ALT,
                     .ctrl = type & AI_MOUSE_CTRL,
-                    .x = x,
-                    .y = y,
+                    .x = x - 1,
+                    .y = y - 1,
                 },
             };
             eventQueue_pushBack(&event);
