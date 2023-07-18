@@ -19,13 +19,13 @@ typedef struct {
     size_t tail; // index after last element. tail should never == head
     size_t capacity;
 } AI_EventQueue;
-AI_EventQueue queue;
-pthread_mutex_t eventQueueMutex;
+static AI_EventQueue queue;
+static pthread_mutex_t eventQueueMutex;
 
-AI_Event sigintKey = { .type = AI_EVENTTYPE_NULL };
-AI_Event exitKey = { .type = AI_EVENTTYPE_NULL };
-atomic_bool shouldExit = false;
-atomic_bool waitInput = true;
+static AI_Event sigintKey = { .type = AI_EVENTTYPE_NULL };
+static AI_Event exitKey = { .type = AI_EVENTTYPE_NULL };
+static atomic_bool shouldExit = false;
+static atomic_bool waitInput = true;
 
 void AI_echo() {
     struct termios term;
@@ -75,7 +75,7 @@ void AI_cooked() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
 }
 
-void AI_wait() {
+static void AI_wait() {
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     if (flags == -1) {
         return;
@@ -84,7 +84,7 @@ void AI_wait() {
     waitInput = true;
 }
 
-void AI_nowait() {
+static void AI_nowait() {
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     if (flags == -1) {
         return;
@@ -184,7 +184,7 @@ void AI_initEventQueue() {
     queue.data = malloc(queue.capacity * sizeof(*queue.data));
 }
 
-bool isStdinEmpty() {
+static bool isStdinEmpty() {
     int ch = getchar();
     if (ch == EOF) {
         return true;
@@ -193,7 +193,7 @@ bool isStdinEmpty() {
     return false;
 }
 
-void readInput(char** buf, size_t* len) {
+static void readInput(char** buf, size_t* len) {
     size_t cap = 256;
     *len = 0;
     *buf = malloc(cap);
@@ -221,15 +221,15 @@ void readInput(char** buf, size_t* len) {
     }
 }
 
-AI_Event* eventQueue_begin() {
+static AI_Event* eventQueue_begin() {
     return queue.data + queue.head;
 }
 
-AI_Event* eventQueue_end() {
+static AI_Event* eventQueue_end() {
     return queue.data + queue.tail;
 }
 
-AI_Event* eventQueue_next(AI_Event* event) {
+static AI_Event* eventQueue_next(AI_Event* event) {
     size_t index = event - queue.data;
     if (index == queue.capacity - 1) {
         return queue.data;
@@ -237,7 +237,7 @@ AI_Event* eventQueue_next(AI_Event* event) {
     return queue.data + index + 1;
 }
 
-void eventQueue_resize() {
+static void eventQueue_resize() {
     size_t newcap = queue.capacity * 2;
     AI_Event* newdata = malloc(newcap * sizeof(*newdata));
     size_t i = 0;
@@ -254,13 +254,13 @@ void eventQueue_resize() {
     queue.capacity = newcap;
 }
 
-size_t eventQueue_size() {
+static size_t eventQueue_size() {
     return queue.tail +
         queue.capacity * (queue.head > queue.tail) -
         queue.head;
 }
 
-void eventQueue_pushBack(AI_Event* event) {
+static void eventQueue_pushBack(AI_Event* event) {
     queue.data[queue.tail] = *event;
     queue.tail = queue.tail + 1 == queue.capacity ?
         0 :
@@ -270,7 +270,7 @@ void eventQueue_pushBack(AI_Event* event) {
     }
 }
 
-AI_Event eventQueue_popFront() {
+static AI_Event eventQueue_popFront() {
     if (!eventQueue_size()) {
         return (AI_Event) { .type = AI_EVENTTYPE_NULL };
     }
@@ -282,14 +282,14 @@ AI_Event eventQueue_popFront() {
     return e;
 }
 
-AI_Event eventQueue_peekFront() {
+static AI_Event eventQueue_peekFront() {
     if (!eventQueue_size()) {
         return (AI_Event) { .type = AI_EVENTTYPE_NULL };
     }
     return queue.data[queue.head];
 }
 
-int size_t_digits (size_t n) {
+static int size_t_digits (size_t n) {
     if (n < 10) return 1;
     if (n < 100) return 2;
     if (n < 1000) return 3;
@@ -312,7 +312,7 @@ int size_t_digits (size_t n) {
     return 20;
 }
 
-void parseInput(char* buf, size_t len) {
+static void parseInput(char* buf, size_t len) {
     if (!len) {
         return;
     }
@@ -436,7 +436,7 @@ void parseInput(char* buf, size_t len) {
     }
 }
 
-void AI_pumpEvents() {
+static void AI_pumpEvents() {
     char* buf;
     size_t len;
     readInput(&buf, &len);
