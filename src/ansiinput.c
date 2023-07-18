@@ -485,7 +485,7 @@ bool AI_waitEvent(AI_Event* e) {
     }
 
     pthread_mutex_unlock(&eventQueueMutex);
-    return e->type != AI_EVENTTYPE_NULL;
+    return true;
 }
 
 bool AI_shouldExit() {
