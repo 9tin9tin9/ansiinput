@@ -25,7 +25,6 @@ static pthread_mutex_t eventQueueMutex;
 static AI_Event sigintKey = { .type = AI_EVENTTYPE_NULL };
 static AI_Event exitKey = { .type = AI_EVENTTYPE_NULL };
 static atomic_bool shouldExit = false;
-static atomic_bool waitInput = true;
 
 void AI_echo() {
     struct termios term;
@@ -81,7 +80,6 @@ static void AI_wait() {
         return;
     }
     fcntl(STDIN_FILENO, F_SETFL, flags ^ O_NONBLOCK);
-    waitInput = true;
 }
 
 static void AI_nowait() {
@@ -90,7 +88,6 @@ static void AI_nowait() {
         return;
     }
     fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-    waitInput = false;
 }
 
 void AI_mouse() {
@@ -193,12 +190,14 @@ static bool isStdinEmpty() {
     return false;
 }
 
-static void readInput(char** buf, size_t* len) {
+static void readInput(char** buf, size_t* len, bool wait) {
     size_t cap = 256;
     *len = 0;
     *buf = malloc(cap);
 
-    bool wait = waitInput;
+    if (!wait) {
+        AI_nowait();
+    }
 
     int readsize = 0;
     while ((readsize = read(STDIN_FILENO, *buf + *len, cap)) > 0) {
@@ -207,16 +206,13 @@ static void readInput(char** buf, size_t* len) {
             cap *= 2;
             *buf = realloc(*buf, cap);
         }
-        if (wait && waitInput) {
-            AI_nowait();
-        }
         if (isStdinEmpty()) {
             break;
         }
     }
     (*buf)[*len] = 0;
 
-    if (wait) {
+    if (!wait) {
         AI_wait();
     }
 }
@@ -436,10 +432,10 @@ static void parseInput(char* buf, size_t len) {
     }
 }
 
-static void AI_pumpEvents() {
+static void AI_pumpEvents(bool wait) {
     char* buf;
     size_t len;
-    readInput(&buf, &len);
+    readInput(&buf, &len, wait);
     parseInput(buf, len);
     free(buf);
 }
@@ -447,11 +443,8 @@ static void AI_pumpEvents() {
 bool AI_pollEvent(AI_Event* e) {
     pthread_mutex_lock(&eventQueueMutex);
 
-    if (waitInput) {
-        AI_nowait();
-    }
     if (!eventQueue_size()) {
-        AI_pumpEvents();
+        AI_pumpEvents(false);
     }
 
     *e = eventQueue_popFront();
@@ -469,11 +462,8 @@ bool AI_pollEvent(AI_Event* e) {
 bool AI_waitEvent(AI_Event* e) {
     pthread_mutex_lock(&eventQueueMutex);
 
-    if (!waitInput) {
-        AI_wait();
-    }
     if (!eventQueue_size()) {
-        AI_pumpEvents();
+        AI_pumpEvents(true);
     }
 
     *e = eventQueue_popFront();

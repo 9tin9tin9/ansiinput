@@ -122,9 +122,6 @@ void AI_nocbreak();
 void AI_raw();
 void AI_cooked();
 
-// void AI_wait();
-// void AI_nowait();
-
 void AI_mouse(); // needs cbreak / raw
 void AI_nomouse();
 
