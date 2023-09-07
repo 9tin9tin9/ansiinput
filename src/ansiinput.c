@@ -200,21 +200,22 @@ static void readInput(char** buf, size_t* len, bool wait) {
     }
 
     int readsize = 0;
-    while ((readsize = read(STDIN_FILENO, *buf + *len, cap)) > 0) {
+    while ((readsize = read(STDIN_FILENO, *buf + *len, cap - *len)) > 0) {
         *len += readsize;
-        if (*len + 1 == cap) {
+        if (*len == cap) {
             cap *= 2;
             *buf = realloc(*buf, cap);
         }
         if (isStdinEmpty()) {
             break;
         }
+        if (wait) {
+            AI_nowait();
+        }
     }
     (*buf)[*len] = 0;
 
-    if (!wait) {
-        AI_wait();
-    }
+    AI_wait();
 }
 
 static AI_Event* eventQueue_begin() {
